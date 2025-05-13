@@ -1,0 +1,493 @@
+<!-- frontend/index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Federal Documents RAG Chat</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .header {
+            background-color: #f1f1f1;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .system-info {
+            margin-top: 10px;
+            padding: 8px;
+            background-color: #e8f4f8;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .chat-container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .input-container {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+            position: sticky;
+            bottom: 0;
+        }
+        #user-input {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            padding: 10px 15px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        .chat-history {
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 10px;
+            height: 400px;
+            overflow-y: auto;
+            background-color: #fff;
+            margin-bottom: 15px;
+        }
+        .message {
+            margin-bottom: 15px;
+            padding: 10px;
+            border-radius: 8px;
+            max-width: 80%;
+        }
+        .user-message {
+            background-color: #e1f5fe;
+            align-self: flex-end;
+            margin-left: auto;
+        }
+        .bot-message {
+            background-color: #f1f1f1;
+            align-self: flex-start;
+        }
+        .message-container {
+            display: flex;
+            flex-direction: column;
+        }
+        .status {
+            margin-top: 10px;
+            font-size: 14px;
+            color: #666;
+        }
+        .status.error {
+            color: #d9534f;
+        }
+        .status.success {
+            color: #5cb85c;
+        }
+        .recent-docs {
+            margin-top: 30px;
+        }
+        .doc-item {
+            border: 1px solid #eee;
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+        }
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: #4CAF50;
+            animation: spin 1s ease-in-out infinite;
+        }
+        .controls {
+            margin-top: 10px;
+            display: flex;
+            gap: 10px;
+        }
+        .clear-btn {
+            background-color: #f44336;
+        }
+        .clear-btn:hover {
+            background-color: #d32f2f;
+        }
+        .sources-container {
+            font-size: 12px;
+            margin-top: 5px;
+            padding: 5px;
+            background-color: #f9f9f9;
+            border-left: 3px solid #4CAF50;
+        }
+        .source-item {
+            margin-bottom: 3px;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .timestamp {
+            font-size: 11px;
+            color: #888;
+            margin-top: 4px;
+            text-align: right;
+        }
+        .tab-container {
+            display: flex;
+            margin-bottom: 10px;
+        }
+        .tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            border: 1px solid #ddd;
+            background-color: #f1f1f1;
+            border-bottom: none;
+            border-radius: 5px 5px 0 0;
+            margin-right: 5px;
+        }
+        .tab.active {
+            background-color: #fff;
+            border-bottom: 2px solid white;
+            position: relative;
+            top: 1px;
+            font-weight: bold;
+        }
+        .tab-content {
+            display: none;
+            border: 1px solid #ddd;
+            padding: 15px;
+            border-radius: 0 5px 5px 5px;
+        }
+        .tab-content.active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Federal Documents RAG Chat</h1>
+        <p>Ask questions about recent federal documents and regulations</p>
+        <div id="connection-status">Checking connection to Ollama...</div>
+        <div id="system-info-container" class="system-info">
+            <div id="model-info">Model: Loading...</div>
+            <div id="data-info">Data: Loading...</div>
+        </div>
+    </div>
+
+    <div class="tab-container">
+        <div class="tab active" onclick="openTab('chat-tab')">Chat</div>
+        <div class="tab" onclick="openTab('docs-tab')">Recent Documents</div>
+    </div>
+
+    <div id="chat-tab" class="tab-content active">
+        <div class="chat-container">
+            <div class="chat-history" id="chat-history">
+                <div class="message-container">
+                    <div class="message bot-message">
+                        Welcome to the Federal Documents RAG Chat. How can I help you with federal regulations today?
+                    </div>
+                </div>
+            </div>
+            
+            <div class="input-container">
+                <input type="text" id="user-input" placeholder="e.g., What are the most recent regulations about environmental protection?" />
+                <button id="send-btn" onclick="sendQuery()">Send</button>
+            </div>
+            
+            <div class="controls">
+                <button id="clear-btn" class="clear-btn" onclick="clearChat()">Clear Conversation</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="docs-tab" class="tab-content">
+        <div class="recent-docs">
+            <h3>Recent Federal Documents <button id="refresh-docs" onclick="loadRecentDocs()">Refresh</button></h3>
+            <div id="docs-container">Loading recent documents...</div>
+        </div>
+    </div>
+
+    <script>
+        // Store conversation history
+        let conversationHistory = [];
+        
+        // Check connection and load system info on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            checkConnection();
+            loadSystemInfo();
+            loadRecentDocs();
+            
+            // Add initial welcome message to conversation history
+            conversationHistory.push({
+                role: "assistant",
+                content: "Welcome to the Federal Documents RAG Chat. How can I help you with federal regulations today?"
+            });
+        });
+        
+        function openTab(tabName) {
+            // Hide all tab contents
+            const tabContents = document.getElementsByClassName("tab-content");
+            for (let i = 0; i < tabContents.length; i++) {
+                tabContents[i].classList.remove("active");
+            }
+            
+            // Remove active class from all tabs
+            const tabs = document.getElementsByClassName("tab");
+            for (let i = 0; i < tabs.length; i++) {
+                tabs[i].classList.remove("active");
+            }
+            
+            // Show the specific tab content
+            document.getElementById(tabName).classList.add("active");
+            
+            // Add active class to the button that opened the tab
+            event.currentTarget.classList.add("active");
+        }
+        
+        async function loadSystemInfo() {
+            try {
+                const response = await fetch("http://localhost:8000/system-info");
+                const data = await response.json();
+                
+                // Update model info
+                const modelElem = document.getElementById("model-info");
+                if (data.model) {
+                    modelElem.innerHTML = `<strong>Model:</strong> ${data.model.name}`;
+                }
+                
+                // Update data info
+                const dataElem = document.getElementById("data-info");
+                if (data.data) {
+                    const lastUpdate = new Date(data.data.last_document_date).toLocaleDateString();
+                    dataElem.innerHTML = `<strong>Last Updated:</strong> ${lastUpdate} (${data.data.total_documents} documents)`;
+                } else {
+                    dataElem.innerHTML = "<strong>Data:</strong> No documents in database";
+                }
+            } catch (error) {
+                document.getElementById("system-info-container").innerHTML = 
+                    "Could not load system information. Check server connection.";
+            }
+        }
+        
+        async function checkConnection() {
+            const statusElem = document.getElementById("connection-status");
+            statusElem.innerHTML = "Checking connection to Ollama...";
+            
+            try {
+                const response = await fetch("http://localhost:8000/health");
+                const data = await response.json();
+                
+                if (data.ollama_connected) {
+                    statusElem.innerHTML = "✅ Connected to Ollama service";
+                    statusElem.className = "status success";
+                } else {
+                    statusElem.innerHTML = "❌ Not connected to Ollama service. Please check if it's running.";
+                    statusElem.className = "status error";
+                }
+            } catch (error) {
+                statusElem.innerHTML = "❌ Cannot connect to backend API. Please check if the server is running.";
+                statusElem.className = "status error";
+            }
+        }
+        
+        async function loadRecentDocs() {
+            const docsContainer = document.getElementById("docs-container");
+            docsContainer.innerHTML = "Loading recent documents...";
+            
+            try {
+                const response = await fetch("http://localhost:8000/recent-documents");
+                const data = await response.json();
+                
+                if (data.documents && data.documents.length > 0) {
+                    docsContainer.innerHTML = "";
+                    data.documents.forEach(doc => {
+                        const docElement = document.createElement("div");
+                        docElement.className = "doc-item";
+                        docElement.innerHTML = `
+                            <strong>${doc.title}</strong><br>
+                            <small>Published: ${doc.date}</small>
+                            <p>${doc.summary.substring(0, 200)}${doc.summary.length > 200 ? '...' : ''}</p>
+                        `;
+                        docsContainer.appendChild(docElement);
+                    });
+                } else {
+                    docsContainer.innerHTML = "No recent documents found.";
+                }
+            } catch (error) {
+                docsContainer.innerHTML = "Error loading documents. Please check your database connection.";
+            }
+        }
+
+        function formatTimestamp() {
+            const now = new Date();
+            return now.toLocaleTimeString();
+        }
+
+        function addMessageToChatHistory(message, isUser = false) {
+            const chatHistory = document.getElementById("chat-history");
+            const messageContainer = document.createElement("div");
+            messageContainer.className = "message-container";
+            
+            const messageElement = document.createElement("div");
+            messageElement.className = `message ${isUser ? 'user-message' : 'bot-message'}`;
+            
+            // Convert URLs to clickable links and preserve line breaks
+            const messageText = message.content.replace(/https?:\/\/[^\s]+/g, url => `<a href="${url}" target="_blank">${url}</a>`);
+            messageElement.innerHTML = messageText.replace(/\n/g, '<br>');
+            
+            // Add timestamp
+            const timestamp = document.createElement("div");
+            timestamp.className = "timestamp";
+            timestamp.textContent = formatTimestamp();
+            
+            messageContainer.appendChild(messageElement);
+            
+            // If it's a bot message and has sources, add them
+            if (!isUser && message.sources && message.sources.length > 0) {
+                const sourcesContainer = document.createElement("div");
+                sourcesContainer.className = "sources-container";
+                sourcesContainer.innerHTML = "<strong>Sources:</strong>";
+                
+                message.sources.forEach(source => {
+                    const sourceItem = document.createElement("div");
+                    sourceItem.className = "source-item";
+                    sourceItem.textContent = `${source.title} (${source.date})`;
+                    sourcesContainer.appendChild(sourceItem);
+                });
+                
+                messageContainer.appendChild(sourcesContainer);
+            }
+            
+            messageContainer.appendChild(timestamp);
+            chatHistory.appendChild(messageContainer);
+            
+            // Scroll to bottom of chat history
+            chatHistory.scrollTop = chatHistory.scrollHeight;
+        }
+
+        async function sendQuery() {
+            const input = document.getElementById("user-input").value.trim();
+            if (!input) return;
+            
+            const sendBtn = document.getElementById("send-btn");
+            
+            // Add user message to UI and conversation history
+            const userMessage = {
+                role: "user",
+                content: input
+            };
+            conversationHistory.push(userMessage);
+            addMessageToChatHistory(userMessage, true);
+            
+            // Clear input field
+            document.getElementById("user-input").value = "";
+            
+            // Disable button and show loading state
+            sendBtn.disabled = true;
+            sendBtn.innerHTML = '<span class="loading"></span>';
+            
+            // Create a temporary "thinking" message
+            const thinkingContainer = document.createElement("div");
+            thinkingContainer.className = "message-container thinking-container";
+            const thinkingMessage = document.createElement("div");
+            thinkingMessage.className = "message bot-message";
+            thinkingMessage.textContent = "Thinking...";
+            thinkingContainer.appendChild(thinkingMessage);
+            document.getElementById("chat-history").appendChild(thinkingContainer);
+            document.getElementById("chat-history").scrollTop = document.getElementById("chat-history").scrollHeight;
+            
+            try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 120000); // 2 minute timeout
+                
+                const response = await fetch("http://localhost:8000/chat", {
+                    method: "POST",
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        message: input,
+                        history: conversationHistory.slice(0, -1) // Send all conversation except current message
+                    }),
+                    signal: controller.signal
+                });
+                
+                clearTimeout(timeoutId);
+                
+                const data = await response.json();
+                
+                // Remove the thinking message
+                document.getElementById("chat-history").removeChild(thinkingContainer);
+                
+                // Add bot response to UI and conversation history
+                const botMessage = {
+                    role: "assistant",
+                    content: data.response || "No response received.",
+                    sources: data.sources || []
+                };
+                conversationHistory.push(botMessage);
+                addMessageToChatHistory(botMessage);
+                
+            } catch (error) {
+                // Remove the thinking message
+                document.getElementById("chat-history").removeChild(thinkingContainer);
+                
+                let errorMsg = "";
+                if (error.name === 'AbortError') {
+                    errorMsg = "The request was taking too long and was aborted. The model might be busy or the query too complex.";
+                } else {
+                    errorMsg = "Error: Could not connect to the backend server. Please check if it's running.";
+                }
+                
+                // Add error message to UI
+                const botMessage = {
+                    role: "assistant",
+                    content: errorMsg
+                };
+                conversationHistory.push(botMessage);
+                addMessageToChatHistory(botMessage);
+                
+            } finally {
+                // Reset button state
+                sendBtn.disabled = false;
+                sendBtn.innerHTML = 'Send';
+            }
+        }
+
+        function clearChat() {
+            // Clear conversation history array (keep welcome message)
+            conversationHistory = [{
+                role: "assistant",
+                content: "Welcome to the Federal Documents RAG Chat. How can I help you with federal regulations today?"
+            }];
+            
+            // Clear UI
+            const chatHistory = document.getElementById("chat-history");
+            chatHistory.innerHTML = '';
+            
+            // Add welcome message back to UI
+            addMessageToChatHistory(conversationHistory[0]);
+        }
+
+        // Also allow sending the query by pressing Enter
+        document.getElementById("user-input").addEventListener("keypress", function(event) {
+            if (event.key === "Enter") {
+                sendQuery();
+            }
+        });
+    </script>
+</body>
+</html>
