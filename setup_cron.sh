@@ -12,7 +12,7 @@ TEMP_CRON=$(mktemp)
 crontab -l > "$TEMP_CRON" 2>/dev/null || echo "" > "$TEMP_CRON"
 
 # Check if the job already exists
-if ! grep -q "improved_data_fetcher.py" "$TEMP_CRON"; then
+if ! grep -q "fetch_fed_register.py" "$TEMP_CRON"; then
     # Add the new job to run daily at 2:00 AM
     echo "# Federal Documents Data Fetcher - runs daily at 2:00 AM" >> "$TEMP_CRON"
     echo "0 2 * * * cd $DIR && python3 improved_data_fetcher.py >> $DIR/data_fetcher.log 2>&1" >> "$TEMP_CRON"
